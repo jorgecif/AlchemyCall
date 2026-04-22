@@ -310,7 +310,7 @@
             addMessage("...Signal lost... Terminating link. Erasing history.", true);
             setTimeout(() => {
                 appContainer.classList.add('tv-off');
-            }, 10000);
+            }, 1000);
         }
 
         // NEW: Handles the final "Connection Lost" blinking message
@@ -321,10 +321,10 @@
             chatWindow.appendChild(disconnectMsg);
             chatWindow.scrollTop = chatWindow.scrollHeight;
 
-            // Trigger actual shutdown animation after 3 seconds of blinking
+            // Trigger actual shutdown animation after 10 seconds of blinking
             setTimeout(() => {
                 appContainer.classList.add('tv-off');
-            }, 3000);
+            },10000);
         }
 
         function renderOptions(options) {
