@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVOKE | Alchemy Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #101010;
+            --accent-cyan: #00f2ff;
+            --accent-magenta: #ff00ff;
+            --text-color: #e0e0e0;
+            --border-width: 4px;
+            --led-green: #0f0;
+            --led-red: #f00;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Roboto Mono', monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            background-image: linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* Scanline / CRT Effect Layer */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #app-container {
+            width: 450px;
+            height: 850px;
+            background: var(--panel-bg);
+            border: var(--border-width) solid #000;
+            box-shadow: 12px 12px 0px var(--accent-cyan);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            max-width: 95vw;
+            max-height: 95vh;
+            transition: all 0.5s ease-in-out;
+        }
+
+        /* LED UNSTABLE CONNECTION ANIMATION */
+        .led-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            background-color: var(--led-green);
+            box-shadow: 0 0 8px var(--led-green);
+            animation: led-glitch 3s infinite;
+        }
+
+        @keyframes led-glitch {
+            0%, 15%, 45%, 60%, 100% { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); opacity: 1; }
+            5%, 20%, 50% { background-color: var(--led-red); box-shadow: 0 0 10px var(--led-red); }
+            7%, 22% { opacity: 0.3; } 
+            55% { background-color: #ff0; box-shadow: 0 0 8px #ff0; }
+        }
+
+        /* TV SHUTDOWN EFFECT */
+        .tv-off {
+            animation: tv-shutdown 0.6s forwards cubic-bezier(0.77, 0, 0.175, 1);
+        }
+
+        @keyframes tv-shutdown {
+            0% { transform: scale(1, 1); filter: brightness(1); }
+            40% { transform: scale(1, 0.005); filter: brightness(5); }
+            100% { transform: scale(0, 0); filter: brightness(10); opacity: 0; }
+        }
+
+        header {
+            padding: 20px;
+            border-bottom: var(--border-width) solid #000;
+            background: var(--accent-cyan);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #chat-window {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-cyan) var(--panel-bg);
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 15px;
+            border: 3px solid #000;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+            line-height: 1.4;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .message.alchemy {
+            align-self: flex-start;
+            background: #fff;
+            color: #000;
+            box-shadow: 6px 6px 0px var(--accent-magenta);
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--accent-cyan);
+            color: #000;
+            box-shadow: -6px 6px 0px #fff;
+        }
+
+        .message img {
+            width: 100%;
+            border: 2px solid #000;
+            margin-top: 10px;
+            display: block;
+        }
+
+        /* NEW: Connection Lost Blinking Effect */
+        .connection-lost {
+            color: var(--led-red);
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 2px;
+            animation: blinker 0.6s step-start infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+        .controls {
+            padding: 20px;
+            border-top: var(--border-width) solid #000;
+            background: #1a1a1a;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+            min-height: 60px;
+        }
+
+        button {
+            background: #000;
+            color: var(--accent-cyan);
+            border: 2px solid var(--accent-cyan);
+            padding: 12px;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            text-align: left;
+        }
+
+        button:hover {
+            background: var(--accent-cyan);
+            color: #000;
+            padding-left: 20px;
+        }
+
+        .typing {
+            font-style: italic;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <div style="display: flex; align-items: center;">
+                <div class="led-status"></div>
+                <span>AGENT: ALCHEMY</span>
+            </div>
+            <span style="font-size: 0.65rem;">SIGNAL: UNSTABLE</span>
+        </header>
+        
+        <div id="chat-window"></div>
+        <div class="controls" id="options"></div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const optionsContainer = document.getElementById('options');
+        const appContainer = document.getElementById('app-container');
+
+        const STORY_DATA = [
+              {
+                id: "recruit",
+                text: "... Signal connection established. We've been monitoring your work and your organization's footprint. The world is fractured, but we see potential in you. We are looking for new members for the EVOKE Network. Are you interested in the truth?",
+                options: [
+                    { label: "YES - Initialize Connection", nextId: 0 },
+                    { label: "NO - Secure Terminal", nextId: "shutdown" }
+                ]
+            },
+
+            {
+                id: 0,
+                text: "The EVOKE Network has gone dark. Alpha Dynamics has fractured global communication. AI systems now produce conflicting realities.",
+                options: [{ label: "Who is this?.", nextId: 1 }]
+            },
+
+
+
+
+            {
+                id: 1,
+                text: "The link is holding. I am Alchemy. I've been in hiding since the network went dark. Alpha Dynamics destroyed our trust, but Aissa has found the key to the rebuild.",
+                image: "img1.jpg",
+                options: [{ label: "How?", nextId: 2 }]
+            },
+
+
+            {
+                id: 2,
+                text: "By creating something stronger than the old network. Not built by corporations, but by young people through EVOKATIONS around the world.",
+                options: [{ label: "Show me the recruits.", nextId: 3 }]
+            },
+
+
+
+            {
+                id: 3,
+                text: "Meet Mateo. He built a local-first AI assistant in a solar-powered backpack. For the first time, answers make sense where he lives.",
+                image: "img2.jpg", // image_4
+                options: [{ label: "Hold on, are those big-ass ants? What kind of crazy place do they eat those?... Never mind... Who else?", nextId: 4 }]
+            },
+            {
+                id: 4,
+                text: "The Twins. Their island is disappearing. They built a low-cost satellite receiver to track environmental change in real time. Independent. Trusted.",
+                image: "img3.jpg", // image_8
+                options: [{ label: "Continue", nextId: 5 }]
+            },
+            {
+                id: 5,
+                text: "Then there's Hailey. She created post-quantum encryption. If AI can learn from anything, it can be used against anyone. Her work ensures control stays with the people.",
+                image: "img4.jpg", // image_10
+                options: [{ label: "Where are they now?", nextId: 6 }]
+            },
+            {
+                id: 6,
+                text: "They've arrived to Evoke Headquarters and now they need your support.",
+                image: "img5.jpg", // image_13
+                options: [{ label: "How can I help?", nextId: 7 }]
+            },
+            {
+                id: 7,
+                text: "We are building a 'Constellation'. It requires three specific roles: Producers, Edupreneurs, and Sponsors.",
+                image: "img6.png",
+                options: [{ label: "Sure, tell me more.", nextId: 8 }]
+            },
+
+            {
+                id: 8,
+                text: "... I think the connection is going to fail. Let me put in contact with Paragon Agent to explain you in detail. He will contact you in a few minutes...",
+                image: "img7.png",
+                options: []
+            },
+        ];
+
+        function addMessage(text, isAlchemy = true, imageUrl = null) {
+            const div = document.createElement('div');
+            div.className = `message ${isAlchemy ? 'alchemy' : 'user'}`;
+            div.innerHTML = `<div>${text}</div>`;
+            if (imageUrl) {
+                div.innerHTML += `<img src="${imageUrl}" alt="Intel Data">`;
+            }
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function triggerShutdown() {
+            addMessage("...Signal lost... Terminating link. Erasing history.", true);
+            setTimeout(() => {
+                appContainer.classList.add('tv-off');
+            }, 1000);
+        }
+
+        // NEW: Handles the final "Connection Lost" blinking message
+        function handleFinalDisconnect() {
+            const disconnectMsg = document.createElement('div');
+            disconnectMsg.className = 'connection-lost';
+            disconnectMsg.innerText = '>>> CONNECTION LOST <<<';
+            chatWindow.appendChild(disconnectMsg);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            // Trigger actual shutdown animation after 3 seconds of blinking
+            setTimeout(() => {
+                appContainer.classList.add('tv-off');
+            }, 3000);
+        }
+
+        function renderOptions(options) {
+            optionsContainer.innerHTML = '';
+            
+            // Trigger disconnect effect if there are no more options
+            if (options.length === 0) {
+                setTimeout(handleFinalDisconnect, 1500);
+                return;
+            }
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.innerText = `[ ${opt.label} ]`;
+                btn.onclick = () => {
+                    optionsContainer.innerHTML = '';
+                    addMessage(opt.label, false);
+                    
+                    if (opt.nextId === "shutdown") {
+                        triggerShutdown();
+                    } else {
+                        const typing = document.createElement('div');
+                        typing.className = 'typing';
+                        typing.innerText = 'Alchemy is typing...';
+                        chatWindow.appendChild(typing);
+                        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                        setTimeout(() => {
+                            typing.remove();
+                            const nextStep = STORY_DATA.find(s => s.id === opt.nextId);
+                            if (nextStep) {
+                                addMessage(nextStep.text, true, nextStep.image);
+                                renderOptions(nextStep.options);
+                            }
+                        }, 1200);
+                    }
+                };
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        window.onload = () => {
+            setTimeout(() => {
+                const intro = STORY_DATA[0];
+                addMessage(intro.text, true);
+                renderOptions(intro.options);
+            }, 1200);
+        };
+    </script>
+</body>
+</html>
